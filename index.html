@@ -27,16 +27,21 @@
         .animate-pulse-fast {
             animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
+
+        .animate-shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
         
         @keyframes pulse {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: .7; transform: scale(0.95); }
         }
 
-        /* Textura Grunge (Ruido SVG) */
-        .grunge-texture {
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E");
-            pointer-events: none;
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
         }
 
         /* Scrollbar personalizada para el modal */
@@ -51,7 +56,7 @@
         }
     </style>
 </head>
-<body class="bg-black">
+<body class="bg-black overflow-hidden"> <!-- Prevent body scroll -->
     <div id="root"></div>
 
     <script type="text/babel">
@@ -73,13 +78,17 @@
         const ShareIcon = ({ size = 24, ...props }) => (
             <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>
         );
+        const AlertTriangle = ({ size = 24, ...props }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        );
 
-        // --- ASSETS & CONFIG (URLs directas a raw para evitar redirecciones y problemas CORS) ---
+        // --- ASSETS & CONFIG ---
         const ASSETS = {
             isotipo: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/calaveraboyRecurso%202.png",
             logoTexto: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/calaveraboytxtRecurso%203.png",
             logosFooter: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/logosfooterRecurso%203.png",
             overlay: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/overlayRecurso%205.png",
+            grunge: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/Texturelabs_Grunge_120S.jpg"
         };
 
         const QUOTES = [
@@ -94,36 +103,32 @@
             const [step, setStep] = useState(1);
             const [showTerms, setShowTerms] = useState(false);
             const [formData, setFormData] = useState({ name: '', dni: '', termsAccepted: false });
+            const [formError, setFormError] = useState(''); // Error state for validation
             const [couple, setCouple] = useState({ p1: '', p2: '' });
             const [capturedImage, setCapturedImage] = useState(null);
             const [randomQuote, setRandomQuote] = useState('');
-            const [overlayLoaded, setOverlayLoaded] = useState(false);
             const [isSharing, setIsSharing] = useState(false);
             
             // Refs
             const videoRef = useRef(null);
             const canvasRef = useRef(null);
             const overlayImageRef = useRef(null);
+            const grungeImageRef = useRef(null);
             const [stream, setStream] = useState(null);
 
-            // --- PRELOAD OVERLAY (Manejo robusto) ---
+            // --- PRELOAD ASSETS ---
             useEffect(() => {
+                // Preload Overlay
                 const img = new Image();
-                img.crossOrigin = "anonymous"; // CRÍTICO: Minúsculas suelen ser más compatibles
+                img.crossOrigin = "anonymous";
                 img.src = ASSETS.overlay;
-                img.onload = () => {
-                    overlayImageRef.current = img;
-                    setOverlayLoaded(true);
-                    console.log("Overlay cargado correctamente para uso en Canvas");
-                };
-                img.onerror = (e) => {
-                    console.error("Error cargando overlay. Intentando recarga...", e);
-                    // Intento simple de recarga con cache breaker si falla
-                    setTimeout(() => {
-                        img.src = ASSETS.overlay + '?t=' + new Date().getTime();
-                    }, 1000);
-                    setOverlayLoaded(true); 
-                };
+                img.onload = () => { overlayImageRef.current = img; };
+                
+                // Preload Grunge
+                const grunge = new Image();
+                grunge.crossOrigin = "anonymous";
+                grunge.src = ASSETS.grunge;
+                grunge.onload = () => { grungeImageRef.current = grunge; };
             }, []);
 
             // --- HANDLERS ---
@@ -159,9 +164,7 @@
                 }
             };
 
-            // Helper para dibujar imagen "contain" en canvas
             const drawImageContain = (ctx, img, canvasWidth, canvasHeight) => {
-                // Verificar validez de imagen antes de dibujar
                 if (!img || img.naturalWidth === 0) return;
 
                 const imgRatio = img.width / img.height;
@@ -181,6 +184,27 @@
                 }
                 ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
             };
+            
+            // Función para dibujar imagen cubriendo todo el canvas (para el grunge)
+            const drawImageCover = (ctx, img, canvasWidth, canvasHeight) => {
+                if (!img || img.naturalWidth === 0) return;
+                const imgRatio = img.width / img.height;
+                const canvasRatio = canvasWidth / canvasHeight;
+                let renderWidth, renderHeight, offsetX, offsetY;
+
+                if (imgRatio < canvasRatio) { // Image is taller
+                    renderWidth = canvasWidth;
+                    renderHeight = img.height * (canvasWidth / img.width);
+                    offsetX = 0;
+                    offsetY = (canvasHeight - renderHeight) / 2;
+                } else { // Image is wider
+                    renderHeight = canvasHeight;
+                    renderWidth = img.width * (canvasHeight / img.height);
+                    offsetX = (canvasWidth - renderWidth) / 2;
+                    offsetY = 0;
+                }
+                ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
+            }
 
             function wrapText(context, text, x, y, maxWidth, lineHeight) {
                 const words = text.split(' ');
@@ -204,6 +228,7 @@
                 if (!videoRef.current || !canvasRef.current) return;
 
                 const overlayImg = overlayImageRef.current;
+                const grungeImg = grungeImageRef.current;
 
                 try {
                     const video = videoRef.current;
@@ -224,25 +249,36 @@
                     context.setTransform(1, 0, 0, 1, 0, 0); 
                     context.filter = 'none';
 
-                    // 2. Dibujar Overlay (Prioridad)
-                    if (overlayImg && overlayImg.complete && overlayImg.naturalHeight !== 0) {
-                        drawImageContain(context, overlayImg, width, height);
-                    } else {
-                        console.warn("Overlay image not ready or broken at capture time.");
+                    // 2. Dibujar Grunge (Multiplicar Invertido)
+                    if (grungeImg && grungeImg.complete) {
+                        context.save();
+                        // Importante: Invertimos el grunge (Negro->Blanco, Blanco->Negro)
+                        // para que al multiplicar, lo que era blanco (ahora negro) ensucie,
+                        // y lo que era negro (ahora blanco) sea transparente.
+                        context.filter = 'invert(1)'; 
+                        context.globalCompositeOperation = 'multiply';
+                        context.globalAlpha = 0.5; // Opacidad 50%
+                        drawImageCover(context, grungeImg, width, height);
+                        context.restore();
                     }
 
-                    // 3. Dibujar Texto
+                    // 3. Dibujar Overlay
+                    if (overlayImg && overlayImg.complete) {
+                        drawImageContain(context, overlayImg, width, height);
+                    }
+
+                    // 4. Dibujar Texto (SIN SOMBRA)
                     context.font = 'bold 80px "Road Rage"';
                     context.fillStyle = '#FFFFFF';
                     context.textAlign = 'center';
-                    context.shadowColor = "rgba(0,0,0,0.8)";
-                    context.shadowBlur = 15;
-                    context.lineWidth = 2;
+                    // Sombra eliminada para consistencia
+                    context.shadowBlur = 0; 
+                    context.shadowColor = 'transparent';
                     
                     const textY = height * 0.30; 
                     context.fillText(`${couple.p1.toUpperCase()} Y ${couple.p2.toUpperCase()}`, width / 2, textY);
 
-                    // 4. Frase
+                    // 5. Frase (SIN SOMBRA)
                     const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
                     setRandomQuote(quote);
 
@@ -250,7 +286,7 @@
                     const quoteY = height * 0.70;
                     wrapText(context, `"${quote}"`, width / 2, quoteY, width * 0.8, 50);
 
-                    // 5. Generar imagen
+                    // 6. Generar imagen
                     const dataUrl = canvas.toDataURL('image/png');
                     setCapturedImage(dataUrl);
                     
@@ -259,50 +295,37 @@
 
                 } catch (e) {
                     console.error("Error taking photo:", e);
-                    alert("Error al procesar la imagen. Es posible que el navegador esté bloqueando recursos externos.");
+                    alert("Error al procesar la imagen.");
                 }
             };
 
-            // --- FUNCIONALIDAD DE DESCARGA / COMPARTIR ---
             const shareOrDownloadPhoto = async () => {
                 if (!capturedImage) return;
                 setIsSharing(true);
-
                 try {
-                    // Convertir DataURL a Blob
                     const response = await fetch(capturedImage);
                     const blob = await response.blob();
-                    
-                    // Crear archivo
                     const file = new File([blob], `CasadosXElHambre_${couple.p1}_${couple.p2}.png`, { type: 'image/png' });
 
-                    // Verificar soporte de Web Share API
                     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
                             files: [file],
                             title: 'Casados x El Hambre',
-                            text: `¡Nos casamos por el hambre! ${couple.p1} & ${couple.p2}`,
+                            text: `¡Nos casamos por el hambre!`,
                         });
-                        console.log("Compartido con éxito");
                     } else {
-                        // Fallback: Descarga clásica
                         const link = document.createElement('a');
                         link.href = capturedImage;
                         link.download = `CasadosXElHambre_${couple.p1}_${couple.p2}.png`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                        
-                        // Mensaje de ayuda para iOS si descarga falla visualmente
                         if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                            alert("Imagen descargada. Revisa tu carpeta de 'Archivos' o mantén presionada la imagen para guardarla.");
+                            alert("Imagen descargada. Revisa 'Archivos' o mantén presionada la imagen para guardarla.");
                         }
                     }
                 } catch (error) {
-                    console.error("Error compartiendo:", error);
-                    if (error.name !== 'AbortError') {
-                         alert("No pudimos abrir el menú de compartir. Intenta mantener presionada la imagen para guardarla.");
-                    }
+                    if (error.name !== 'AbortError') alert("No pudimos compartir. Intenta guardar la imagen manualmente.");
                 } finally {
                     setIsSharing(false);
                 }
@@ -313,7 +336,12 @@
             
             const submitRegister = (e) => {
                 e.preventDefault();
-                if(formData.name && formData.dni && formData.termsAccepted) {
+                setFormError(''); // Reset error
+                if (!formData.termsAccepted) {
+                    setFormError('Debes aceptar el tratamiento de datos para continuar.');
+                    return;
+                }
+                if(formData.name && formData.dni) {
                     setStep(4);
                 }
             };
@@ -337,12 +365,13 @@
             // 1. SPLASH SCREEN
             if (step === 1) {
                 return (
+                    // h-[100dvh] asegura que ocupa exactamente el viewport visible dinámico
                     <div 
                         onClick={goToRegister}
-                        className="h-screen w-full bg-white flex flex-col items-center justify-between py-12 px-6 cursor-pointer relative overflow-hidden font-oswald animate-[fadeIn_0.7s_ease-in]"
+                        className="h-[100dvh] w-full bg-white flex flex-col items-center justify-between py-6 px-4 cursor-pointer relative overflow-hidden font-oswald animate-[fadeIn_0.7s_ease-in]"
                     >
                         <div className="flex-1 flex flex-col items-center justify-center space-y-8 w-full z-10">
-                            <img src={ASSETS.isotipo} alt="Calavera" className="w-32 md:w-40 drop-shadow-xl" />
+                            <img src={ASSETS.isotipo} alt="Calavera" className="w-24 md:w-32 drop-shadow-xl" />
                             <div className="text-center space-y-2 animate-pulse-fast">
                                 <h1 className="text-6xl md:text-8xl font-road-rage text-black uppercase leading-[0.8]">TOCA<br/>LA<br/>PANTALLA</h1>
                             </div>
@@ -357,57 +386,77 @@
             // 2 & 3. REGISTRATION + TERMS
             if (step === 2 || step === 3) {
                 return (
-                    <div className="h-screen w-full bg-white relative flex flex-col font-oswald overflow-hidden">
-                        <div className={`flex-1 flex flex-col items-center px-6 py-8 transition-all duration-500 ${showTerms ? 'blur-md brightness-75 scale-95' : ''}`}>
-                            <div className="flex flex-col items-center mb-8 w-full max-w-xs">
-                                <img src={ASSETS.isotipo} alt="Icon" className="w-20 mb-3" />
-                                <div className="w-48">
+                    <div className="h-[100dvh] w-full bg-white relative flex flex-col font-oswald overflow-hidden">
+                        <div className={`h-full flex flex-col items-center px-6 py-4 transition-all duration-500 ${showTerms ? 'blur-md brightness-75 scale-95' : ''}`}>
+                            
+                            {/* Header compacto */}
+                            <div className="flex-none flex flex-col items-center mb-4 w-full max-w-xs pt-4">
+                                <img src={ASSETS.isotipo} alt="Icon" className="w-16 mb-2" />
+                                <div className="w-40">
                                     <img src={ASSETS.logoTexto} alt="Casados x El Hambre" className="w-full" />
                                 </div>
                             </div>
 
-                            <form onSubmit={submitRegister} className="w-full max-w-sm space-y-4 z-10">
-                                <div className="space-y-1">
-                                    <label className="font-road-rage text-2xl ml-1">Nombre completo:</label>
-                                    <input 
-                                        required
-                                        type="text" 
-                                        value={formData.name}
-                                        onChange={e => setFormData({...formData, name: e.target.value})}
-                                        className="w-full bg-black text-white p-3 text-lg border-2 border-black focus:outline-none focus:ring-2 focus:ring-gray-500"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="font-road-rage text-2xl ml-1">DNI / CE:</label>
-                                    <input 
-                                        required
-                                        type="text" 
-                                        value={formData.dni}
-                                        onChange={e => setFormData({...formData, dni: e.target.value})}
-                                        className="w-full bg-black text-white p-3 text-lg border-2 border-black focus:outline-none"
-                                    />
-                                </div>
-                                <div className="flex items-center space-x-3 py-2 cursor-pointer" onClick={() => setFormData({...formData, termsAccepted: !formData.termsAccepted})}>
-                                    <div className={`w-6 h-6 border-2 border-black flex items-center justify-center transition-colors ${formData.termsAccepted ? 'bg-black' : 'bg-white'}`}>
-                                        {formData.termsAccepted && <div className="w-3 h-3 bg-white" />}
+                            {/* Form centrado y expansible */}
+                            <div className="flex-1 w-full max-w-sm flex flex-col justify-center space-y-2 z-10 min-h-0">
+                                <form onSubmit={submitRegister} className="w-full space-y-3">
+                                    <div className="space-y-1">
+                                        <label className="font-road-rage text-xl ml-1 block">Nombre completo:</label>
+                                        <input 
+                                            required
+                                            type="text" 
+                                            value={formData.name}
+                                            onChange={e => setFormData({...formData, name: e.target.value})}
+                                            className="w-full bg-black text-white p-2 text-lg border-2 border-black focus:outline-none rounded-none"
+                                        />
                                     </div>
-                                    <span className="font-bold text-lg leading-none pt-1">Acepto el tratamiento de datos.</span>
-                                </div>
-                                <button type="submit" className="w-full bg-black text-white font-road-rage text-5xl py-2 mt-4 hover:scale-[1.02] transition-transform shadow-lg">
-                                    ENTRAR
+                                    <div className="space-y-1">
+                                        <label className="font-road-rage text-xl ml-1 block">DNI / CE:</label>
+                                        <input 
+                                            required
+                                            type="text" 
+                                            value={formData.dni}
+                                            onChange={e => setFormData({...formData, dni: e.target.value})}
+                                            className="w-full bg-black text-white p-2 text-lg border-2 border-black focus:outline-none rounded-none"
+                                        />
+                                    </div>
+                                    
+                                    {/* Checkbox Container */}
+                                    <div className="pt-2">
+                                        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => { setFormData({...formData, termsAccepted: !formData.termsAccepted}); setFormError(''); }}>
+                                            <div className={`w-6 h-6 border-2 border-black flex-none flex items-center justify-center transition-colors ${formData.termsAccepted ? 'bg-black' : 'bg-white'}`}>
+                                                {formData.termsAccepted && <div className="w-3 h-3 bg-white" />}
+                                            </div>
+                                            <span className="font-bold text-base leading-tight pt-1">Acepto el tratamiento de datos.</span>
+                                        </div>
+                                        
+                                        {/* Mensaje de error condicional */}
+                                        {formError && (
+                                            <div className="flex items-center space-x-1 text-red-600 mt-2 text-sm font-bold animate-shake">
+                                                <AlertTriangle size={16} />
+                                                <span>{formError}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button type="submit" className="w-full bg-black text-white font-road-rage text-4xl py-2 mt-4 hover:scale-[1.02] active:scale-95 transition-transform shadow-lg">
+                                        ENTRAR
+                                    </button>
+                                </form>
+
+                                {/* Terms Link */}
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowTerms(true)}
+                                    className="flex items-center justify-center space-x-1 text-xs font-bold opacity-80 hover:opacity-100 py-2"
+                                >
+                                    <ArrowRight size={14} strokeWidth={3} />
+                                    <span>Ver términos y condiciones.</span>
                                 </button>
-                            </form>
+                            </div>
 
-                            <button 
-                                type="button"
-                                onClick={() => setShowTerms(true)}
-                                className="mt-6 flex items-center space-x-1 text-sm font-bold opacity-80 hover:opacity-100"
-                            >
-                                <ArrowRight size={16} strokeWidth={3} />
-                                <span>Ver términos y condiciones.</span>
-                            </button>
-
-                            <div className="mt-auto w-full max-w-xs pt-8">
+                            {/* Footer pegado abajo */}
+                            <div className="flex-none w-full max-w-xs pb-4 pt-2">
                                 <img src={ASSETS.logosFooter} alt="Logos" className="w-full" />
                             </div>
                         </div>
@@ -434,31 +483,37 @@
             // 4. MARRIAGE FORM
             if (step === 4) {
                 return (
-                    <div className="h-screen w-full bg-white flex flex-col font-oswald overflow-hidden">
-                        <div className="flex-1 flex flex-col items-center px-6 py-8 animate-[slideInFromRight_0.5s_ease-out]">
-                            <div className="flex flex-col items-center mb-6 w-full max-w-xs">
+                    <div className="h-[100dvh] w-full bg-white flex flex-col font-oswald overflow-hidden">
+                        <div className="h-full flex flex-col items-center px-6 py-4 animate-[slideInFromRight_0.5s_ease-out]">
+                            <div className="flex-none flex flex-col items-center mb-4 w-full max-w-xs pt-4">
                                 <img src={ASSETS.isotipo} alt="Icon" className="w-12 mb-1" />
-                                <div className="w-32">
+                                <div className="w-28">
                                     <img src={ASSETS.logoTexto} alt="Logo" className="w-full opacity-90" />
                                 </div>
                             </div>
 
-                            <form onSubmit={submitMarriage} className="w-full max-w-sm space-y-4 z-10 flex flex-col items-center">
-                                <div className="w-full space-y-1 text-center">
-                                    <label className="font-road-rage text-3xl">Cónyuge 1</label>
-                                    <input required type="text" value={couple.p1} onChange={e => setCouple({...couple, p1: e.target.value})} className="w-full bg-black text-white p-3 text-xl text-center border-2 border-black focus:outline-none" />
-                                </div>
-                                <div className="w-full space-y-1 text-center">
-                                    <label className="font-road-rage text-3xl">Cónyuge 2</label>
-                                    <input required type="text" value={couple.p2} onChange={e => setCouple({...couple, p2: e.target.value})} className="w-full bg-black text-white p-3 text-xl text-center border-2 border-black focus:outline-none" />
-                                </div>
-                                <h3 className="font-road-rage text-3xl text-center leading-tight pt-4 px-2">¿Aceptan soportarse hasta que la digestión los separe?</h3>
-                                <button type="submit" className="w-full bg-black text-white flex items-center justify-center space-x-2 py-3 mt-4 hover:scale-105 transition-transform shadow-xl">
-                                    <span className="font-road-rage text-4xl pt-1">SÍ, ACEPTAMOS</span>
-                                    <ChevronUp className="rotate-90" size={32} />
-                                    <span className="font-bold text-xs absolute bottom-1 opacity-60">(TOMAR FOTO)</span>
-                                </button>
-                            </form>
+                            <div className="flex-1 w-full max-w-sm flex flex-col justify-center min-h-0">
+                                <form onSubmit={submitMarriage} className="w-full space-y-4 flex flex-col items-center">
+                                    <div className="w-full space-y-1 text-center">
+                                        <label className="font-road-rage text-2xl">Cónyuge 1</label>
+                                        <input required type="text" value={couple.p1} onChange={e => setCouple({...couple, p1: e.target.value})} className="w-full bg-black text-white p-2 text-xl text-center border-2 border-black focus:outline-none rounded-none" />
+                                    </div>
+                                    <div className="w-full space-y-1 text-center">
+                                        <label className="font-road-rage text-2xl">Cónyuge 2</label>
+                                        <input required type="text" value={couple.p2} onChange={e => setCouple({...couple, p2: e.target.value})} className="w-full bg-black text-white p-2 text-xl text-center border-2 border-black focus:outline-none rounded-none" />
+                                    </div>
+                                    <h3 className="font-road-rage text-2xl text-center leading-tight pt-2 px-2">¿Aceptan soportarse hasta que la digestión los separe?</h3>
+                                    <button type="submit" className="w-full bg-black text-white flex items-center justify-center space-x-2 py-3 mt-2 hover:scale-105 transition-transform shadow-xl">
+                                        <span className="font-road-rage text-3xl pt-1">SÍ, ACEPTAMOS</span>
+                                        <ChevronUp className="rotate-90" size={24} />
+                                    </button>
+                                    <span className="font-bold text-xs opacity-60">(TOMAR FOTO)</span>
+                                </form>
+                            </div>
+
+                            <div className="flex-none w-full max-w-xs pb-4">
+                                <img src={ASSETS.logosFooter} alt="Logos" className="w-full" />
+                            </div>
                         </div>
                     </div>
                 );
@@ -467,14 +522,22 @@
             // 5. CAMERA VIEW
             if (step === 5) {
                 return (
-                    <div className="h-screen w-full bg-black relative overflow-hidden flex flex-col">
+                    <div className="h-[100dvh] w-full bg-black relative overflow-hidden flex flex-col">
                         <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover scale-x-[-1] filter saturate-[0.5] contrast-[1.1]" onLoadedMetadata={() => videoRef.current && videoRef.current.play()} />
-                        <div className="absolute inset-0 grunge-texture z-10" />
+                        
+                        {/* GRUNGE OVERLAY (CSS Version) */}
+                        {/* Se usa mix-blend-mode: multiply. Como la imagen es negra con blanco, la invertimos para que sea blanca con negro */}
+                        {/* Blanco (invertido) en multiply = transparente. Negro (invertido) = suciedad. */}
+                        <img 
+                            src={ASSETS.grunge} 
+                            className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10 opacity-50 mix-blend-multiply invert" 
+                        />
+
                         <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between">
                             <img src={ASSETS.overlay} className="w-full h-full object-contain opacity-90 mix-blend-hard-light" alt="Overlay" />
                         </div>
                         <div className="absolute top-[30%] w-full text-center z-30 pointer-events-none px-4">
-                            <h2 className="font-road-rage text-white text-5xl md:text-7xl drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] tracking-wide">{couple.p1} Y {couple.p2}</h2>
+                            <h2 className="font-road-rage text-white text-5xl md:text-7xl drop-shadow-none tracking-wide">{couple.p1} Y {couple.p2}</h2>
                         </div>
                         <div className="absolute bottom-12 w-full flex justify-center z-50">
                             <button onClick={handleCapture} className="w-20 h-20 rounded-full bg-white border-4 border-gray-300 shadow-[0_0_20px_rgba(255,255,255,0.5)] active:scale-90 transition-transform flex items-center justify-center">
@@ -489,7 +552,7 @@
             // 6. RESULT VIEW
             if (step === 6) {
                 return (
-                    <div className="h-screen w-full bg-gray-900 relative flex flex-col items-center justify-center">
+                    <div className="h-[100dvh] w-full bg-gray-900 relative flex flex-col items-center justify-center">
                         <div className="relative w-full h-full max-w-md mx-auto bg-black shadow-2xl overflow-hidden flex flex-col">
                             <div className="relative flex-1 bg-black flex items-center justify-center">
                                 {capturedImage && <img src={capturedImage} alt="Captured" className="max-w-full max-h-full object-contain" />}
