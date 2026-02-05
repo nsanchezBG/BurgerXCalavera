@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Casados x El Hambre - Web App</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel para compilar JSX en el navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Road+Rage&family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Fuentes personalizadas */
+        .font-road-rage { font-family: 'Road Rage', cursive; }
+        .font-oswald { font-family: 'Oswald', sans-serif; }
+        
+        /* Animaciones */
+        .animate-pulse-fast {
+            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .7; transform: scale(0.95); }
+        }
+
+        /* Textura Grunge (Ruido SVG) */
+        .grunge-texture {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+
+        /* Scrollbar personalizada para el modal */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #fff;
+        }
+    </style>
+</head>
+<body class="bg-black">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // --- ICONOS SVG (Reemplazo de lucide-react para evitar imports) ---
+        const ArrowRight = ({ size = 24, ...props }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        );
+        const ChevronUp = ({ size = 24, ...props }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m18 15-6-6-6 6"/></svg>
+        );
+        const Download = ({ size = 24, ...props }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+        );
+        const RefreshCcw = ({ size = 24, ...props }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+        );
+
+        // --- ASSETS & CONFIG ---
+        const ASSETS = {
+            isotipo: "https://github.com/nsanchezBG/BurgerXCalavera/blob/main/calaveraboyRecurso%202.png?raw=true",
+            logoTexto: "https://github.com/nsanchezBG/BurgerXCalavera/blob/main/calaveraboytxtRecurso%203.png?raw=true",
+            logosFooter: "https://github.com/nsanchezBG/BurgerXCalavera/blob/main/logosfooterRecurso%203.png?raw=true",
+            overlay: "https://github.com/nsanchezBG/BurgerXCalavera/blob/main/overlayRecurso%205.png?raw=true",
+        };
+
+        const QUOTES = [
+            "Hasta que la cuenta nos separe.",
+            "Prometo no revisar tu celular mientras estás en el baño.",
+            "Matrimonio válido hasta el 14/02 a las 11:59 PM",
+            "El hambre nos unió."
+        ];
+
+        // --- APP COMPONENT ---
+        function App() {
+            const [step, setStep] = useState(1); // 1: Splash, 2: Register, 3: Terms(Modal), 4: Marriage, 5: Camera, 6: Result
+            const [showTerms, setShowTerms] = useState(false);
+            const [formData, setFormData] = useState({ name: '', dni: '', termsAccepted: false });
+            const [couple, setCouple] = useState({ p1: '', p2: '' });
+            const [capturedImage, setCapturedImage] = useState(null);
+            const [randomQuote, setRandomQuote] = useState('');
+            const [overlayLoaded, setOverlayLoaded] = useState(false);
+            
+            // Refs
+            const videoRef = useRef(null);
+            const canvasRef = useRef(null);
+            const overlayImageRef = useRef(null);
+            const [stream, setStream] = useState(null);
+
+            // --- PRELOAD OVERLAY ---
+            useEffect(() => {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.src = ASSETS.overlay;
+                img.onload = () => {
+                    overlayImageRef.current = img;
+                    setOverlayLoaded(true);
+                    console.log("Overlay preloaded correctly");
+                };
+                img.onerror = (e) => {
+                    console.error("Error loading overlay", e);
+                    setOverlayLoaded(true); // Fallback para no bloquear
+                };
+            }, []);
+
+            // --- HANDLERS ---
+            const startCamera = async () => {
+                try {
+                    const constraints = {
+                        video: { 
+                            facingMode: 'user',
+                            width: { ideal: 1920 }, 
+                            height: { ideal: 1080 },
+                            aspectRatio: { ideal: 9/16 }
+                        },
+                        audio: false
+                    };
+                    
+                    const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    setStream(mediaStream);
+                    // Use setTimeout to ensure video element is rendered
+                    setTimeout(() => {
+                         if (videoRef.current) {
+                            videoRef.current.srcObject = mediaStream;
+                        }
+                    }, 100);
+                } catch (err) {
+                    console.error("Error accessing camera:", err);
+                    alert("No pudimos acceder a la cámara. Verifica los permisos o intenta en otro navegador.");
+                }
+            };
+
+            const stopCamera = () => {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    setStream(null);
+                }
+            };
+
+            // Helper para dibujar imagen "contain" en canvas
+            const drawImageContain = (ctx, img, canvasWidth, canvasHeight) => {
+                const imgRatio = img.width / img.height;
+                const canvasRatio = canvasWidth / canvasHeight;
+                let renderWidth, renderHeight, offsetX, offsetY;
+
+                if (imgRatio < canvasRatio) {
+                    renderHeight = canvasHeight;
+                    renderWidth = img.width * (canvasHeight / img.height);
+                    offsetX = (canvasWidth - renderWidth) / 2;
+                    offsetY = 0;
+                } else {
+                    renderWidth = canvasWidth;
+                    renderHeight = img.height * (canvasWidth / img.width);
+                    offsetX = 0;
+                    offsetY = (canvasHeight - renderHeight) / 2;
+                }
+                ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
+            };
+
+            // Helper for text wrapping on canvas
+            function wrapText(context, text, x, y, maxWidth, lineHeight) {
+                const words = text.split(' ');
+                let line = '';
+
+                for(let n = 0; n < words.length; n++) {
+                    const testLine = line + words[n] + ' ';
+                    const metrics = context.measureText(testLine);
+                    const testWidth = metrics.width;
+                    if (testWidth > maxWidth && n > 0) {
+                        context.fillText(line, x, y);
+                        line = words[n] + ' ';
+                        y += lineHeight;
+                    } else {
+                        line = testLine;
+                    }
+                }
+                context.fillText(line, x, y);
+            }
+
+            const handleCapture = () => {
+                if (!videoRef.current || !canvasRef.current) return;
+
+                const overlayImg = overlayImageRef.current;
+
+                try {
+                    const video = videoRef.current;
+                    const canvas = canvasRef.current;
+                    const context = canvas.getContext('2d');
+                    
+                    const width = video.videoWidth;
+                    const height = video.videoHeight;
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    // 1. Dibujar Video (Espejo + Filtros)
+                    context.filter = 'saturate(50%) contrast(110%)';
+                    context.translate(width, 0);
+                    context.scale(-1, 1); 
+                    context.drawImage(video, 0, 0, width, height);
+                    context.setTransform(1, 0, 0, 1, 0, 0); 
+                    context.filter = 'none';
+
+                    // 2. Dibujar Overlay
+                    if (overlayImg) {
+                        drawImageContain(context, overlayImg, width, height);
+                    }
+
+                    // 3. Dibujar Texto (Nombres)
+                    context.font = 'bold 80px "Road Rage"';
+                    context.fillStyle = '#FFFFFF';
+                    context.textAlign = 'center';
+                    context.shadowColor = "rgba(0,0,0,0.8)";
+                    context.shadowBlur = 15;
+                    context.lineWidth = 2;
+                    
+                    const textY = height * 0.30; 
+                    context.fillText(`${couple.p1.toUpperCase()} Y ${couple.p2.toUpperCase()}`, width / 2, textY);
+
+                    // 4. Dibujar Frase
+                    const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+                    setRandomQuote(quote);
+
+                    context.font = '40px "Oswald"';
+                    const quoteY = height * 0.70;
+                    wrapText(context, `"${quote}"`, width / 2, quoteY, width * 0.8, 50);
+
+                    // 5. Generar imagen final
+                    const dataUrl = canvas.toDataURL('image/png');
+                    setCapturedImage(dataUrl);
+                    
+                    stopCamera();
+                    setStep(6);
+
+                } catch (e) {
+                    console.error("Error taking photo:", e);
+                    alert("Hubo un error al procesar la foto. Intenta de nuevo.");
+                }
+            };
+
+            // --- NAVIGATION ---
+            const goToRegister = () => setStep(2);
+            
+            const submitRegister = (e) => {
+                e.preventDefault();
+                if(formData.name && formData.dni && formData.termsAccepted) {
+                    setStep(4);
+                }
+            };
+
+            const submitMarriage = (e) => {
+                e.preventDefault();
+                if(couple.p1 && couple.p2) {
+                    setStep(5);
+                    startCamera();
+                }
+            };
+
+            const repeatPhoto = () => {
+                setCapturedImage(null);
+                setStep(5);
+                startCamera();
+            };
+
+            const downloadPhoto = () => {
+                if (!capturedImage) return;
+                const link = document.createElement('a');
+                link.href = capturedImage;
+                link.download = `CasadosXElHambre_${couple.p1}_${couple.p2}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            // --- RENDERING ---
+
+            // 1. SPLASH SCREEN
+            if (step === 1) {
+                return (
+                    <div 
+                        onClick={goToRegister}
+                        className="h-screen w-full bg-white flex flex-col items-center justify-between py-12 px-6 cursor-pointer relative overflow-hidden font-oswald animate-[fadeIn_0.7s_ease-in]"
+                    >
+                        <div className="flex-1 flex flex-col items-center justify-center space-y-8 w-full z-10">
+                            <img src={ASSETS.isotipo} alt="Calavera" className="w-32 md:w-40 drop-shadow-xl" />
+                            <div className="text-center space-y-2 animate-pulse-fast">
+                                <h1 className="text-6xl md:text-8xl font-road-rage text-black uppercase leading-[0.8]">TOCA<br/>LA<br/>PANTALLA</h1>
+                            </div>
+                        </div>
+                        <div className="w-full max-w-xs z-10">
+                            <img src={ASSETS.logosFooter} alt="Logos Footer" className="w-full opacity-90" />
+                        </div>
+                    </div>
+                );
+            }
+
+            // 2 & 3. REGISTRATION + TERMS
+            if (step === 2 || step === 3) {
+                return (
+                    <div className="h-screen w-full bg-white relative flex flex-col font-oswald overflow-hidden">
+                        {/* Main Content */}
+                        <div className={`flex-1 flex flex-col items-center px-6 py-8 transition-all duration-500 ${showTerms ? 'blur-md brightness-75 scale-95' : ''}`}>
+                            <div className="flex flex-col items-center mb-8 w-full max-w-xs">
+                                <img src={ASSETS.isotipo} alt="Icon" className="w-20 mb-3" />
+                                <div className="w-48">
+                                    <img src={ASSETS.logoTexto} alt="Casados x El Hambre" className="w-full" />
+                                </div>
+                            </div>
+
+                            <form onSubmit={submitRegister} className="w-full max-w-sm space-y-4 z-10">
+                                <div className="space-y-1">
+                                    <label className="font-road-rage text-2xl ml-1">Nombre completo:</label>
+                                    <input 
+                                        required
+                                        type="text" 
+                                        value={formData.name}
+                                        onChange={e => setFormData({...formData, name: e.target.value})}
+                                        className="w-full bg-black text-white p-3 text-lg border-2 border-black focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="font-road-rage text-2xl ml-1">DNI / CE:</label>
+                                    <input 
+                                        required
+                                        type="text" 
+                                        value={formData.dni}
+                                        onChange={e => setFormData({...formData, dni: e.target.value})}
+                                        className="w-full bg-black text-white p-3 text-lg border-2 border-black focus:outline-none"
+                                    />
+                                </div>
+                                <div className="flex items-center space-x-3 py-2 cursor-pointer" onClick={() => setFormData({...formData, termsAccepted: !formData.termsAccepted})}>
+                                    <div className={`w-6 h-6 border-2 border-black flex items-center justify-center transition-colors ${formData.termsAccepted ? 'bg-black' : 'bg-white'}`}>
+                                        {formData.termsAccepted && <div className="w-3 h-3 bg-white" />}
+                                    </div>
+                                    <span className="font-bold text-lg leading-none pt-1">Acepto el tratamiento de datos.</span>
+                                </div>
+                                <button type="submit" className="w-full bg-black text-white font-road-rage text-5xl py-2 mt-4 hover:scale-[1.02] transition-transform shadow-lg">
+                                    ENTRAR
+                                </button>
+                            </form>
+
+                            <button 
+                                type="button"
+                                onClick={() => setShowTerms(true)}
+                                className="mt-6 flex items-center space-x-1 text-sm font-bold opacity-80 hover:opacity-100"
+                            >
+                                <ArrowRight size={16} strokeWidth={3} />
+                                <span>Ver términos y condiciones.</span>
+                            </button>
+
+                            <div className="mt-auto w-full max-w-xs pt-8">
+                                <img src={ASSETS.logosFooter} alt="Logos" className="w-full" />
+                            </div>
+                        </div>
+
+                        {/* Modal Terms */}
+                        {showTerms && (
+                            <div className="absolute inset-0 z-50 flex items-center justify-center px-4 animate-[zoomIn_0.3s_ease-out]">
+                                <div className="bg-black text-white p-6 w-full max-w-md border-4 border-white shadow-2xl relative h-[70vh] flex flex-col">
+                                    <h2 className="font-road-rage text-4xl text-center mb-4 text-white">Términos y condiciones</h2>
+                                    <div className="flex-1 overflow-y-auto pr-2 text-sm text-gray-300 space-y-4 font-sans leading-relaxed custom-scrollbar">
+                                        <p><strong>1. Aceptación:</strong> Al participar en la campaña "Casados x El Hambre", aceptas ceder tu imagen para fines promocionales de BurgerBoy y Calavera Pizzería.</p>
+                                        <p><strong>2. Datos:</strong> Tus datos serán tratados conforme a la ley de protección de datos personales. No enviaremos spam, solo hamburguesas mentales.</p>
+                                        <p><strong>3. Responsabilidad:</strong> No nos hacemos responsables si tu matrimonio falso dura más que el real. Coman con responsabilidad.</p>
+                                        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed eleifend dolor quam, vitae varius enim pretium eget.</p>
+                                        <p>Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.</p>
+                                    </div>
+                                    <div className="mt-4 flex justify-center">
+                                        <button 
+                                        onClick={() => setShowTerms(false)}
+                                        className="bg-white text-black font-road-rage text-3xl px-8 py-1 hover:bg-gray-200"
+                                        >
+                                        OK
+                                        </button>
+                                    </div>
+                                    <div className="absolute right-1 top-20 bottom-20 w-1 bg-gray-800 rounded-full overflow-hidden">
+                                        <div className="w-full h-1/3 bg-white absolute top-0" />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+
+            // 4. MARRIAGE FORM
+            if (step === 4) {
+                return (
+                    <div className="h-screen w-full bg-white flex flex-col font-oswald overflow-hidden">
+                        <div className="flex-1 flex flex-col items-center px-6 py-8 animate-[slideInFromRight_0.5s_ease-out]">
+                            <div className="flex flex-col items-center mb-6 w-full max-w-xs">
+                                <img src={ASSETS.isotipo} alt="Icon" className="w-12 mb-1" />
+                                <div className="w-32">
+                                    <img src={ASSETS.logoTexto} alt="Logo" className="w-full opacity-90" />
+                                </div>
+                            </div>
+
+                            <form onSubmit={submitMarriage} className="w-full max-w-sm space-y-4 z-10 flex flex-col items-center">
+                                <div className="w-full space-y-1 text-center">
+                                    <label className="font-road-rage text-3xl">Cónyuge 1</label>
+                                    <input 
+                                        required
+                                        type="text" 
+                                        value={couple.p1}
+                                        onChange={e => setCouple({...couple, p1: e.target.value})}
+                                        className="w-full bg-black text-white p-3 text-xl text-center border-2 border-black focus:outline-none"
+                                    />
+                                </div>
+                                <div className="w-full space-y-1 text-center">
+                                    <label className="font-road-rage text-3xl">Cónyuge 2</label>
+                                    <input 
+                                        required
+                                        type="text" 
+                                        value={couple.p2}
+                                        onChange={e => setCouple({...couple, p2: e.target.value})}
+                                        className="w-full bg-black text-white p-3 text-xl text-center border-2 border-black focus:outline-none"
+                                    />
+                                </div>
+                                <h3 className="font-road-rage text-3xl text-center leading-tight pt-4 px-2">
+                                    ¿Aceptan soportarse hasta que la digestión los separe?
+                                </h3>
+                                <button type="submit" className="w-full bg-black text-white flex items-center justify-center space-x-2 py-3 mt-4 hover:scale-105 transition-transform shadow-xl">
+                                    <span className="font-road-rage text-4xl pt-1">SÍ, ACEPTAMOS</span>
+                                    <ChevronUp className="rotate-90" size={32} />
+                                    <span className="font-bold text-xs absolute bottom-1 opacity-60">(TOMAR FOTO)</span>
+                                </button>
+                            </form>
+
+                            <div className="mt-auto w-full max-w-xs pt-4">
+                                <img src={ASSETS.logosFooter} alt="Logos" className="w-full" />
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 5. CAMERA VIEW
+            if (step === 5) {
+                return (
+                    <div className="h-screen w-full bg-black relative overflow-hidden flex flex-col">
+                        <video 
+                            ref={videoRef}
+                            autoPlay 
+                            playsInline
+                            className="absolute inset-0 w-full h-full object-cover scale-x-[-1] filter saturate-[0.5] contrast-[1.1]"
+                            onLoadedMetadata={() => videoRef.current && videoRef.current.play()}
+                        />
+                        <div className="absolute inset-0 grunge-texture z-10" />
+                        <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between">
+                            <img 
+                                src={ASSETS.overlay} 
+                                className="w-full h-full object-contain opacity-90 mix-blend-hard-light" 
+                                alt="Overlay" 
+                            />
+                        </div>
+                        <div className="absolute top-[30%] w-full text-center z-30 pointer-events-none px-4">
+                            <h2 className="font-road-rage text-white text-5xl md:text-7xl drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] tracking-wide">
+                                {couple.p1} Y {couple.p2}
+                            </h2>
+                        </div>
+                        <div className="absolute bottom-12 w-full flex justify-center z-50">
+                            <button 
+                                onClick={handleCapture}
+                                className="w-20 h-20 rounded-full bg-white border-4 border-gray-300 shadow-[0_0_20px_rgba(255,255,255,0.5)] active:scale-90 transition-transform flex items-center justify-center"
+                            >
+                                <div className="w-16 h-16 rounded-full bg-white border-2 border-black" />
+                            </button>
+                        </div>
+                        <canvas ref={canvasRef} className="hidden" />
+                    </div>
+                );
+            }
+
+            // 6. RESULT VIEW
+            if (step === 6) {
+                return (
+                    <div className="h-screen w-full bg-gray-900 relative flex flex-col items-center justify-center">
+                        <div className="relative w-full h-full max-w-md mx-auto bg-black shadow-2xl overflow-hidden flex flex-col">
+                            <div className="relative flex-1 bg-black flex items-center justify-center">
+                                {capturedImage && (
+                                    <img src={capturedImage} alt="Captured" className="max-w-full max-h-full object-contain" />
+                                )}
+                            </div>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-20 space-y-4 p-6">
+                                <div className="w-full space-y-4 animate-[zoomIn_0.5s_ease-out] mt-20">
+                                    <button 
+                                        onClick={downloadPhoto}
+                                        className="w-full bg-white hover:bg-gray-100 text-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform hover:-translate-y-1 transition-all border-2 border-black"
+                                    >
+                                        <div className="font-road-rage text-4xl md:text-5xl leading-none flex items-center justify-center gap-2">
+                                            DESCARGA LA FOTO <Download size={32} />
+                                        </div>
+                                    </button>
+                                    <button 
+                                        onClick={repeatPhoto}
+                                        className="w-full bg-white hover:bg-gray-100 text-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform hover:-translate-y-1 transition-all border-2 border-black"
+                                    >
+                                        <div className="font-road-rage text-4xl md:text-5xl leading-none flex items-center justify-center gap-2">
+                                            REPITE LA FOTO <RefreshCcw size={32} />
+                                        </div>
+                                    </button>
+                                </div>
+                                <div className="mt-8 text-center px-4 pointer-events-none">
+                                    <p className="font-oswald text-white text-xl md:text-2xl drop-shadow-lg italic opacity-0">
+                                        "{randomQuote}"
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return null;
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
