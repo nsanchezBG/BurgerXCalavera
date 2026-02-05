@@ -100,16 +100,15 @@
 
         // --- APP COMPONENT ---
         function App() {
-            // STEP MAPPING:
+            // STEP MAPPING (Updated Flow):
             // 1: Splash
-            // 2: Register
-            // 3: INSTRUCTIONS (New)
-            // 4: Marriage Names
-            // 5: Camera
-            // 6: Result
+            // 2: INSTRUCTIONS + TERMS (Checkbox here)
+            // 3: Marriage Names
+            // 4: Camera
+            // 5: Result
             const [step, setStep] = useState(1);
             const [showTerms, setShowTerms] = useState(false);
-            const [formData, setFormData] = useState({ name: '', dni: '', termsAccepted: false });
+            const [termsAccepted, setTermsAccepted] = useState(false); // Only terms needed now
             const [formError, setFormError] = useState('');
             const [couple, setCouple] = useState({ p1: '', p2: '' });
             const [capturedImage, setCapturedImage] = useState(null);
@@ -279,7 +278,7 @@
                     const dataUrl = canvas.toDataURL('image/png');
                     setCapturedImage(dataUrl);
                     stopCamera();
-                    setStep(6);
+                    setStep(5); // Go to Result (Step 5 now)
                 } catch (e) {
                     console.error("Error photo:", e);
                     alert("Error al procesar la imagen.");
@@ -317,32 +316,30 @@
             };
 
             // --- NAVIGATION ---
-            const goToRegister = () => setStep(2);
+            // Step 1 -> 2 (Mechanics)
+            const goToMechanics = () => setStep(2);
             
-            const submitRegister = (e) => {
-                e.preventDefault();
+            // Step 2 -> 3 (Marriage Form)
+            const submitMechanics = () => {
                 setFormError('');
-                if (!formData.termsAccepted) {
-                    setFormError('Debes aceptar el tratamiento de datos para continuar.');
+                if (!termsAccepted) {
+                    setFormError('Debes aceptar los términos y condiciones.');
                     return;
                 }
-                if(formData.name && formData.dni) {
-                    // NEW FLOW: Go to instructions (Step 3) instead of Marriage (Step 4)
-                    setStep(3); 
-                }
+                setStep(3);
             };
 
             const submitMarriage = (e) => {
                 e.preventDefault();
                 if(couple.p1 && couple.p2) {
-                    setStep(5);
+                    setStep(4);
                     startCamera();
                 }
             };
 
             const repeatPhoto = () => {
                 setCapturedImage(null);
-                setStep(5);
+                setStep(4);
                 startCamera();
             };
 
@@ -351,7 +348,7 @@
             // 1. SPLASH
             if (step === 1) {
                 return (
-                    <div onClick={goToRegister} className="h-[100dvh] w-full bg-white flex flex-col items-center justify-between py-6 px-4 cursor-pointer relative overflow-hidden font-oswald animate-[fadeIn_0.7s_ease-in]">
+                    <div onClick={goToMechanics} className="h-[100dvh] w-full bg-white flex flex-col items-center justify-between py-6 px-4 cursor-pointer relative overflow-hidden font-oswald animate-[fadeIn_0.7s_ease-in]">
                         <div className="flex-1 flex flex-col items-center justify-center space-y-8 w-full z-10">
                             <img src={ASSETS.isotipo} alt="Calavera" className="w-24 md:w-32 drop-shadow-xl" />
                             <div className="text-center space-y-2 animate-pulse-fast">
@@ -365,60 +362,104 @@
                 );
             }
 
-            // 2. REGISTRATION
+            // 2. MECHANICS + TERMS (New Step)
             if (step === 2) {
                 return (
                     <div className="h-[100dvh] w-full bg-white relative flex flex-col font-oswald overflow-hidden">
-                        <div className={`h-full flex flex-col items-center px-6 py-4 transition-all duration-500 ${showTerms ? 'blur-md brightness-75 scale-95' : ''}`}>
-                            <div className="flex-none flex flex-col items-center mb-4 w-full max-w-xs pt-4">
-                                <img src={ASSETS.isotipo} alt="Icon" className="w-16 mb-2" />
-                                <div className="w-40">
+                        <div className={`h-full flex flex-col items-center px-4 py-2 transition-all duration-500 ${showTerms ? 'blur-md brightness-75 scale-95' : ''}`}>
+                            {/* Header */}
+                            <div className="flex-none flex flex-col items-center mb-2 w-full max-w-xs pt-2">
+                                <img src={ASSETS.isotipo} alt="Icon" className="w-14 mb-1" />
+                                <div className="w-32">
                                     <img src={ASSETS.logoTexto} alt="Casados x El Hambre" className="w-full" />
                                 </div>
                             </div>
 
-                            <div className="flex-1 w-full max-w-sm flex flex-col justify-center space-y-2 z-10 min-h-0">
-                                <form onSubmit={submitRegister} className="w-full space-y-3">
-                                    <div className="space-y-1">
-                                        <label className="font-road-rage text-xl ml-1 block">Nombre completo:</label>
-                                        <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-black text-white p-2 text-lg border-2 border-black focus:outline-none rounded-none" />
+                            {/* Content */}
+                            <div className="flex-1 w-full max-w-sm flex flex-col items-center justify-center space-y-2 min-h-0">
+                                
+                                {/* Title Banner */}
+                                <div className="bg-black text-white font-road-rage text-4xl px-4 py-1 transform -rotate-1 mb-4 text-center w-full shadow-lg">
+                                    PASOS PARA PARTICIPAR
+                                </div>
+
+                                {/* Steps List - Compact */}
+                                <div className="w-full space-y-3 px-1">
+                                    {/* Step 1 */}
+                                    <div className="flex items-center space-x-3">
+                                        <div className="flex-none w-12 h-12 bg-black text-white flex items-center justify-center font-road-rage text-4xl pt-1 shadow-md">1</div>
+                                        <p className="font-road-rage text-2xl md:text-3xl leading-none uppercase pt-1">
+                                            PONGAN SUS NOMBRES Y ACEPTEN EL COMPROMISO.
+                                        </p>
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className="font-road-rage text-xl ml-1 block">DNI / CE:</label>
-                                        <input required type="text" value={formData.dni} onChange={e => setFormData({...formData, dni: e.target.value})} className="w-full bg-black text-white p-2 text-lg border-2 border-black focus:outline-none rounded-none" />
+                                    
+                                    {/* Step 2 */}
+                                    <div className="flex items-center space-x-3">
+                                        <div className="flex-none w-12 h-12 bg-black text-white flex items-center justify-center font-road-rage text-4xl pt-1 shadow-md">2</div>
+                                        <p className="font-road-rage text-2xl md:text-3xl leading-none uppercase pt-1">
+                                            TÓMENSE LA FOTO “OFICIAL” DEL MATRI.
+                                        </p>
                                     </div>
-                                    <div className="pt-2">
-                                        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => { setFormData({...formData, termsAccepted: !formData.termsAccepted}); setFormError(''); }}>
-                                            <div className={`w-6 h-6 border-2 border-black flex-none flex items-center justify-center transition-colors ${formData.termsAccepted ? 'bg-black' : 'bg-white'}`}>
-                                                {formData.termsAccepted && <div className="w-3 h-3 bg-white" />}
-                                            </div>
-                                            <span className="font-bold text-base leading-tight pt-1">Acepto el tratamiento de datos.</span>
+
+                                    {/* Step 3 */}
+                                    <div className="flex items-center space-x-3">
+                                        <div className="flex-none w-12 h-12 bg-black text-white flex items-center justify-center font-road-rage text-4xl pt-1 shadow-md">3</div>
+                                        <div className="font-road-rage text-2xl md:text-3xl leading-none uppercase pt-1">
+                                            SÚBANLA A STORIES ETIQUETANDO A <br/>
+                                            <span className="bg-black text-white px-1 mt-1 inline-block">@BURGERBOYPE</span> + <span className="bg-black text-white px-1 mt-1 inline-block">@CALAVERA.PIZZERIA</span>
                                         </div>
-                                        {formError && (
-                                            <div className="flex items-center space-x-1 text-red-600 mt-2 text-sm font-bold animate-shake">
-                                                <AlertTriangle size={16} />
-                                                <span>{formError}</span>
-                                            </div>
-                                        )}
                                     </div>
-                                    <button type="submit" className="w-full bg-black text-white font-road-rage text-4xl py-2 mt-4 hover:scale-[1.02] active:scale-95 transition-transform shadow-lg">ENTRAR</button>
-                                </form>
-                                <button type="button" onClick={() => setShowTerms(true)} className="flex items-center justify-center space-x-1 text-xs font-bold opacity-80 hover:opacity-100 py-2">
-                                    <ArrowRight size={14} strokeWidth={3} />
-                                    <span>Ver términos y condiciones.</span>
-                                </button>
+                                </div>
+
+                                {/* TERMS CHECKBOX AREA */}
+                                <div className="w-full pt-4 flex flex-col items-center">
+                                    <div className="flex items-center space-x-3 cursor-pointer" onClick={() => { setTermsAccepted(!termsAccepted); setFormError(''); }}>
+                                        <div className={`w-6 h-6 border-2 border-black flex-none flex items-center justify-center transition-colors ${termsAccepted ? 'bg-black' : 'bg-white'}`}>
+                                            {termsAccepted && <div className="w-3 h-3 bg-white" />}
+                                        </div>
+                                        <span className="font-oswald font-bold text-base leading-tight pt-1 uppercase">Acepto los términos y condiciones.</span>
+                                    </div>
+                                    
+                                    <button 
+                                        type="button"
+                                        onClick={() => setShowTerms(true)}
+                                        className="mt-2 text-xs font-bold opacity-80 hover:opacity-100 underline cursor-pointer uppercase tracking-wider"
+                                    >
+                                        Ver términos y condiciones
+                                    </button>
+
+                                    {formError && (
+                                        <div className="flex items-center space-x-1 text-red-600 mt-2 text-sm font-bold animate-shake">
+                                            <AlertTriangle size={16} />
+                                            <span>{formError}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* CTA */}
+                                <div className="pt-2 w-full flex justify-center">
+                                    <button onClick={submitMechanics} className="bg-black text-white font-road-rage text-5xl px-12 py-2 hover:scale-105 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
+                                        OK, VAMOS
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex-none w-full max-w-xs pb-4 pt-2">
+
+                            {/* Footer */}
+                            <div className="flex-none w-full max-w-xs pb-2 pt-2">
                                 <img src={ASSETS.logosFooter} alt="Logos" className="w-full" />
                             </div>
                         </div>
+
+                        {/* TERMS MODAL */}
                         {showTerms && (
                             <div className="absolute inset-0 z-50 flex items-center justify-center px-4 animate-[zoomIn_0.3s_ease-out]">
                                 <div className="bg-black text-white p-6 w-full max-w-md border-4 border-white shadow-2xl relative h-[70vh] flex flex-col">
                                     <h2 className="font-road-rage text-4xl text-center mb-4 text-white">Términos y condiciones</h2>
                                     <div className="flex-1 overflow-y-auto pr-2 text-sm text-gray-300 space-y-4 font-sans leading-relaxed custom-scrollbar">
-                                        <p><strong>1. Aceptación:</strong> Al participar, aceptas ceder tu imagen para fines promocionales.</p>
-                                        <p><strong>2. Datos:</strong> Tus datos serán tratados conforme a ley.</p>
+                                        <p><strong>1. Aceptación:</strong> Al participar en la campaña "Casados x El Hambre", aceptas ceder tu imagen y derechos de uso para fines promocionales de BurgerBoy y Calavera Pizzería.</p>
+                                        <p><strong>2. Uso de Imagen:</strong> Autorizo a las marcas a repostear, editar y difundir la fotografía generada en sus redes sociales y medios digitales.</p>
+                                        <p><strong>3. Responsabilidad:</strong> Esta es una campaña de entretenimiento. No tiene validez legal civil.</p>
+                                        <p><strong>4. Datos:</strong> No recopilamos datos personales sensibles, únicamente la imagen generada bajo tu consentimiento.</p>
                                     </div>
                                     <div className="mt-4 flex justify-center">
                                         <button onClick={() => setShowTerms(false)} className="bg-white text-black font-road-rage text-3xl px-8 py-1 hover:bg-gray-200">OK</button>
@@ -430,74 +471,8 @@
                 );
             }
 
-            // 3. INSTRUCTIONS (NUEVO PASO)
+            // 3. MARRIAGE FORM (Renumbered Logic)
             if (step === 3) {
-                return (
-                    <div className="h-[100dvh] w-full bg-white flex flex-col font-oswald overflow-hidden">
-                        <div className="h-full flex flex-col items-center px-6 py-4 animate-[slideInFromRight_0.5s_ease-out]">
-                            {/* Header */}
-                            <div className="flex-none flex flex-col items-center mb-4 w-full max-w-xs pt-4">
-                                <img src={ASSETS.isotipo} alt="Icon" className="w-16 mb-2" />
-                                <div className="w-36">
-                                    <img src={ASSETS.logoTexto} alt="Casados x El Hambre" className="w-full" />
-                                </div>
-                            </div>
-
-                            {/* Content */}
-                            <div className="flex-1 w-full max-w-sm flex flex-col items-center justify-start space-y-6 min-h-0 overflow-y-auto custom-scrollbar pt-2">
-                                
-                                {/* Title Banner */}
-                                <div className="bg-black text-white font-road-rage text-4xl px-4 py-1 transform -rotate-1 mb-2 text-center w-full">
-                                    PASOS PARA PARTICIPAR
-                                </div>
-
-                                {/* Steps List */}
-                                <div className="w-full space-y-5 px-1">
-                                    {/* Step 1 */}
-                                    <div className="flex items-center space-x-3">
-                                        <div className="flex-none w-12 h-12 bg-black text-white flex items-center justify-center font-road-rage text-4xl pt-1">1</div>
-                                        <p className="font-road-rage text-3xl leading-tight uppercase pt-1">
-                                            PONGAN SUS NOMBRES Y ACEPTEN EL COMPROMISO.
-                                        </p>
-                                    </div>
-                                    
-                                    {/* Step 2 */}
-                                    <div className="flex items-center space-x-3">
-                                        <div className="flex-none w-12 h-12 bg-black text-white flex items-center justify-center font-road-rage text-4xl pt-1">2</div>
-                                        <p className="font-road-rage text-3xl leading-tight uppercase pt-1">
-                                            TÓMENSE LA FOTO “OFICIAL” DEL MATRI.
-                                        </p>
-                                    </div>
-
-                                    {/* Step 3 */}
-                                    <div className="flex items-center space-x-3">
-                                        <div className="flex-none w-12 h-12 bg-black text-white flex items-center justify-center font-road-rage text-4xl pt-1">3</div>
-                                        <div className="font-road-rage text-3xl leading-tight uppercase pt-1">
-                                            SÚBANLA A STORIES ETIQUETANDO A <br/>
-                                            <span className="bg-black text-white px-1 mt-1 inline-block">@BURGERBOYPE</span> + <span className="bg-black text-white px-1 mt-1 inline-block">@CALAVERA.PIZZERIA</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* CTA */}
-                                <div className="pt-4 pb-2 w-full flex justify-center">
-                                    <button onClick={() => setStep(4)} className="bg-black text-white font-road-rage text-5xl px-12 py-2 hover:scale-105 transition-transform shadow-lg">
-                                        OK, VAMOS
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Footer */}
-                            <div className="flex-none w-full max-w-xs pb-4 pt-2">
-                                <img src={ASSETS.logosFooter} alt="Logos" className="w-full" />
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-
-            // 4. MARRIAGE FORM
-            if (step === 4) {
                 return (
                     <div className="h-[100dvh] w-full bg-white flex flex-col font-oswald overflow-hidden">
                         <div className="h-full flex flex-col items-center px-6 py-4 animate-[slideInFromRight_0.5s_ease-out]">
@@ -534,8 +509,8 @@
                 );
             }
 
-            // 5. CAMERA VIEW
-            if (step === 5) {
+            // 4. CAMERA VIEW
+            if (step === 4) {
                 return (
                     <div className="h-[100dvh] w-full bg-black relative overflow-hidden flex flex-col">
                         <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover scale-x-[-1] filter saturate-[0.5] contrast-[1.1]" onLoadedMetadata={() => videoRef.current && videoRef.current.play()} />
@@ -556,8 +531,8 @@
                 );
             }
 
-            // 6. RESULT VIEW
-            if (step === 6) {
+            // 5. RESULT VIEW
+            if (step === 5) {
                 return (
                     <div className="h-[100dvh] w-full bg-gray-900 relative flex flex-col items-center justify-center">
                         <div className="relative w-full h-full max-w-md mx-auto bg-black shadow-2xl overflow-hidden flex flex-col">
