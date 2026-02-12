@@ -7,15 +7,15 @@
     
     <!-- GOOGLE ANALYTICS 4 (GA4) -->
     <!-- REEMPLAZA 'G-XXXXXXXXXX' CON TU ID DE MEDICIÓN REAL -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NNB5GTRCZ0"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
 
-      // Configuración inicial: captura automática de Navegador, Dispositivo y Sesión
-      gtag('config', 'G-NNB5GTRCZ0', {
-        'send_page_view': false // Desactivamos vista de página automática para usar eventos manuales por pasos
+      // Configuración inicial
+      gtag('config', 'G-XXXXXXXXXX', {
+        'send_page_view': false 
       });
     </script>
     <!-- FIN GOOGLE ANALYTICS -->
@@ -113,19 +113,40 @@
             logoTexto: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/calaveraboytxtRecurso%203.png",
             logosFooter: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/logosfooterRecurso%203.png",
             overlay: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/overlayRecurso%205.png",
-            grunge: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/Texturelabs_Grunge_120S.jpg"
+            grunge: "https://raw.githubusercontent.com/nsanchezBG/BurgerXCalavera/main/Texturelabs_Grunge_120S.jpg",
+            poweredBy: "https://github.com/nsanchezBG/BurgerXCalavera/blob/main/poweredbyBG.png?raw=true"
         };
 
         const QUOTES = [
             "Hasta que la cuenta nos separe.",
             "Prometo no revisar tu celular mientras estás en el baño.",
-            "Matrimonio válido hasta el 14/02 a las 11:59 PM",
-            "El hambre nos unió."
+            "Matrimonio válido hasta terminar de comer.",
+            "El hambre nos unió.",
+            "Ni la digestión nos separará.",
+            "Pídeme todo menos que te invite.",
+            "Juntos en la salud y en la bajona.",
+            "Sí, acepto... que pagues tú.",
+            "Prometo serte fiel hasta que llegue el postre.",
+            "Juntos hasta que se acabe la promo.",
+            "Casados bajo el régimen de platos separados.",
+            "Juntos, pero con platos separados.",
+            "Unidos por el sagrado vínculo del queso derretido."
         ];
+
+        // --- COMPONENTS ---
+        
+        // Componente para el footer "Powered by BrandGeeks"
+        const PoweredBy = () => (
+            <div className="w-full flex justify-center mt-3 z-20 relative">
+                <a href="https://brandgeeks.pe" target="_blank" rel="noopener noreferrer" className="opacity-80 hover:opacity-100 transition-opacity block">
+                    <img src={ASSETS.poweredBy} alt="Powered by BrandGeeks" className="h-4 object-contain" /> 
+                </a>
+            </div>
+        );
 
         // --- APP COMPONENT ---
         function App() {
-            // STEP MAPPING (Updated Flow):
+            // STEP MAPPING:
             // 1: Splash
             // 2: INSTRUCTIONS + TERMS (Checkbox here)
             // 3: Marriage Names
@@ -149,7 +170,6 @@
 
             // --- TRACKING DROP-OUTS & SESSIONS ---
             useEffect(() => {
-                // Mapa de pasos para analytics
                 const stepNames = {
                     1: '01_Splash',
                     2: '02_Mecanica',
@@ -160,21 +180,17 @@
 
                 const currentStepName = stepNames[step];
 
-                // 1. Rastreo de Pasos (Para ver dropouts)
                 trackEvent('view_step', {
                     step_number: step,
                     step_name: currentStepName
                 });
 
-                // 2. Rastreo de inicio de sesión manual (aunque GA lo hace auto)
                 if (step === 1) {
                     trackEvent('app_session_start', {
                         description: 'Usuario abrió la app en Splash'
                     });
                 }
-
             }, [step]);
-            // -------------------------------------
 
             // --- PRELOAD ASSETS ---
             useEffect(() => {
@@ -333,12 +349,11 @@
                     setCapturedImage(dataUrl);
                     stopCamera();
                     
-                    // Analytics: Foto capturada (paso intermedio importante)
                     trackEvent('photo_captured', {
                         quote_selected: quote
                     });
 
-                    setStep(5); // Go to Result (Step 5 now)
+                    setStep(5);
                 } catch (e) {
                     console.error("Error photo:", e);
                     alert("Error al procesar la imagen.");
@@ -346,8 +361,6 @@
             };
 
             const shareOrDownloadPhoto = async () => {
-                
-                // TRACKING: Conversión Completada
                 trackEvent('conversion_complete', {
                     method: isSharing ? 'share_api' : 'download_fallback',
                     couple_names: `${couple.p1} & ${couple.p2}`
@@ -383,15 +396,12 @@
             };
 
             // --- NAVIGATION ---
-            // Step 1 -> 2 (Mechanics)
             const goToMechanics = () => setStep(2);
             
-            // Step 2 -> 3 (Marriage Form)
             const submitMechanics = () => {
                 setFormError('');
                 if (!termsAccepted) {
                     setFormError('Debes aceptar los términos y condiciones.');
-                    // Tracking: Error de validación
                     trackEvent('error_validation', {
                         step: '02_Mecanica',
                         message: 'Terminos no aceptados'
@@ -413,8 +423,6 @@
                 setCapturedImage(null);
                 setStep(4);
                 startCamera();
-                
-                // Tracking: Reintento
                 trackEvent('photo_retake', {
                     from_step: '05_Resultado'
                 });
@@ -432,19 +440,19 @@
                                 <h1 className="text-6xl md:text-8xl font-road-rage text-black uppercase leading-[0.8]">TOCA<br/>LA<br/>PANTALLA</h1>
                             </div>
                         </div>
-                        <div className="w-full max-w-xs z-10">
+                        <div className="w-full max-w-xs z-10 flex flex-col items-center pb-4">
                             <img src={ASSETS.logosFooter} alt="Logos Footer" className="w-full opacity-90" />
+                            <PoweredBy />
                         </div>
                     </div>
                 );
             }
 
-            // 2. MECHANICS + TERMS (New Step)
+            // 2. MECHANICS + TERMS
             if (step === 2) {
                 return (
                     <div className="h-[100dvh] w-full bg-white relative flex flex-col font-oswald overflow-hidden">
                         <div className={`h-full flex flex-col items-center px-4 py-2 transition-all duration-500 ${showTerms ? 'blur-md brightness-75 scale-95' : ''}`}>
-                            {/* Header */}
                             <div className="flex-none flex flex-col items-center mb-2 w-full max-w-xs pt-2">
                                 <img src={ASSETS.isotipo} alt="Icon" className="w-14 mb-1" />
                                 <div className="w-32">
@@ -452,43 +460,29 @@
                                 </div>
                             </div>
 
-                            {/* Content */}
                             <div className="flex-1 w-full max-w-sm flex flex-col items-center justify-center space-y-2 min-h-0">
-                                
-                                {/* Title Banner */}
-                                <div className="bg-black text-white font-road-rage text-4xl px-4 py-1 transform -rotate-1 mb-4 text-center w-full shadow-lg">
+                                <div className="bg-black text-white font-road-rage text-3xl px-4 py-1 transform -rotate-1 mb-3 text-center w-full shadow-lg">
                                     PASOS PARA PARTICIPAR
                                 </div>
 
-                                {/* Steps List - Compact */}
-                                <div className="w-full space-y-3 px-1">
-                                    {/* Step 1 */}
+                                <div className="w-full space-y-2 px-1">
                                     <div className="flex items-center space-x-3">
-                                        <div className="flex-none w-12 h-12 bg-black text-white flex items-center justify-center font-road-rage text-4xl pt-1 shadow-md">1</div>
-                                        <p className="font-road-rage text-2xl md:text-3xl leading-none uppercase pt-1">
-                                            PONGAN SUS NOMBRES Y ACEPTEN EL COMPROMISO.
-                                        </p>
+                                        <div className="flex-none w-10 h-10 bg-black text-white flex items-center justify-center font-road-rage text-2xl pt-1 shadow-md">1</div>
+                                        <p className="font-road-rage text-xl md:text-2xl leading-none uppercase pt-1">PONGAN SUS NOMBRES Y ACEPTEN EL COMPROMISO.</p>
                                     </div>
-                                    
-                                    {/* Step 2 */}
                                     <div className="flex items-center space-x-3">
-                                        <div className="flex-none w-12 h-12 bg-black text-white flex items-center justify-center font-road-rage text-4xl pt-1 shadow-md">2</div>
-                                        <p className="font-road-rage text-2xl md:text-3xl leading-none uppercase pt-1">
-                                            TÓMENSE LA FOTO “OFICIAL” DEL MATRI.
-                                        </p>
+                                        <div className="flex-none w-10 h-10 bg-black text-white flex items-center justify-center font-road-rage text-2xl pt-1 shadow-md">2</div>
+                                        <p className="font-road-rage text-xl md:text-2xl leading-none uppercase pt-1">TÓMENSE LA FOTO “OFICIAL” DEL MATRI.</p>
                                     </div>
-
-                                    {/* Step 3 */}
                                     <div className="flex items-center space-x-3">
-                                        <div className="flex-none w-12 h-12 bg-black text-white flex items-center justify-center font-road-rage text-4xl pt-1 shadow-md">3</div>
-                                        <div className="font-road-rage text-2xl md:text-3xl leading-none uppercase pt-1">
+                                        <div className="flex-none w-10 h-10 bg-black text-white flex items-center justify-center font-road-rage text-2xl pt-1 shadow-md">3</div>
+                                        <div className="font-road-rage text-xl md:text-2xl leading-none uppercase pt-1">
                                             SÚBANLA A STORIES ETIQUETANDO A <br/>
                                             <span className="bg-black text-white px-1 mt-1 inline-block">@BURGERBOYPE</span> + <span className="bg-black text-white px-1 mt-1 inline-block">@CALAVERA.PIZZERIA</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* TERMS CHECKBOX AREA */}
                                 <div className="w-full pt-4 flex flex-col items-center">
                                     <div className="flex items-center space-x-3 cursor-pointer" onClick={() => { setTermsAccepted(!termsAccepted); setFormError(''); }}>
                                         <div className={`w-6 h-6 border-2 border-black flex-none flex items-center justify-center transition-colors ${termsAccepted ? 'bg-black' : 'bg-white'}`}>
@@ -496,15 +490,7 @@
                                         </div>
                                         <span className="font-oswald font-bold text-base leading-tight pt-1 uppercase">Acepto los términos y condiciones.</span>
                                     </div>
-                                    
-                                    <button 
-                                        type="button"
-                                        onClick={() => setShowTerms(true)}
-                                        className="mt-2 text-xs font-bold opacity-80 hover:opacity-100 underline cursor-pointer uppercase tracking-wider"
-                                    >
-                                        Ver términos y condiciones
-                                    </button>
-
+                                    <button type="button" onClick={() => setShowTerms(true)} className="mt-2 text-xs font-bold opacity-80 hover:opacity-100 underline cursor-pointer uppercase tracking-wider">Ver términos y condiciones</button>
                                     {formError && (
                                         <div className="flex items-center space-x-1 text-red-600 mt-2 text-sm font-bold animate-shake">
                                             <AlertTriangle size={16} />
@@ -513,30 +499,102 @@
                                     )}
                                 </div>
 
-                                {/* CTA */}
                                 <div className="pt-2 w-full flex justify-center">
-                                    <button onClick={submitMechanics} className="bg-black text-white font-road-rage text-5xl px-12 py-2 hover:scale-105 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
-                                        OK, VAMOS
-                                    </button>
+                                    <button onClick={submitMechanics} className="bg-black text-white font-road-rage text-4xl px-8 py-2 hover:scale-105 transition-transform shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">OK, VAMOS</button>
                                 </div>
                             </div>
-
-                            {/* Footer */}
-                            <div className="flex-none w-full max-w-xs pb-2 pt-2">
+                            <div className="flex-none w-full max-w-xs pb-2 pt-2 flex flex-col items-center">
                                 <img src={ASSETS.logosFooter} alt="Logos" className="w-full" />
+                                <PoweredBy />
                             </div>
                         </div>
 
-                        {/* TERMS MODAL */}
+                        {/* TERMS MODAL ACTUALIZADO */}
                         {showTerms && (
                             <div className="absolute inset-0 z-50 flex items-center justify-center px-4 animate-[zoomIn_0.3s_ease-out]">
                                 <div className="bg-black text-white p-6 w-full max-w-md border-4 border-white shadow-2xl relative h-[70vh] flex flex-col">
-                                    <h2 className="font-road-rage text-4xl text-center mb-4 text-white">Términos y condiciones</h2>
-                                    <div className="flex-1 overflow-y-auto pr-2 text-sm text-gray-300 space-y-4 font-sans leading-relaxed custom-scrollbar">
-                                        <p><strong>1. Aceptación:</strong> Al participar en la campaña "Casados x El Hambre", aceptas ceder tu imagen y derechos de uso para fines promocionales de BurgerBoy y Calavera Pizzería.</p>
-                                        <p><strong>2. Uso de Imagen:</strong> Autorizo a las marcas a repostear, editar y difundir la fotografía generada en sus redes sociales y medios digitales.</p>
-                                        <p><strong>3. Responsabilidad:</strong> Esta es una campaña de entretenimiento. No tiene validez legal civil.</p>
-                                        <p><strong>4. Datos:</strong> No recopilamos datos personales sensibles, únicamente la imagen generada bajo tu consentimiento.</p>
+                                    <h2 className="font-road-rage text-4xl text-center mb-4 text-white uppercase">Legales</h2>
+                                    <div className="flex-1 overflow-y-auto pr-2 text-sm text-gray-300 space-y-4 font-sans leading-relaxed custom-scrollbar text-justify">
+                                        
+                                        <h3 className="font-bold text-white text-lg uppercase">Política de Privacidad</h3>
+                                        <p><strong>Aceptación:</strong> Al participar en la campaña “Casados x El Hambre”, aceptas los presentes términos y condiciones y autorizas el uso de tu imagen para fines promocionales de Burgerboy y Calavera.</p>
+                                        <p><strong>Uso de imagen:</strong> Autorizo a las marcas a repostear, difundir y comunicar la fotografía generada en sus redes sociales y medios digitales.</p>
+                                        <p><strong>Carácter de la campaña:</strong> Esta es una campaña promocional de entretenimiento y no constituye un sorteo ni genera derechos de carácter civil.</p>
+                                        <p><strong>Datos personales:</strong> No se recopilan datos personales sensibles. Únicamente se genera la imagen bajo consentimiento del participante.</p>
+
+                                        <hr className="border-gray-600 my-4"/>
+
+                                        <h3 className="font-bold text-white text-lg uppercase">Términos y Condiciones</h3>
+                                        <p className="italic">PROMOCIÓN CASADOS X EL HAMBRE - BURGERBOY x CALAVERA</p>
+                                        
+                                        <p>La presente promoción es organizada por BURGERBOY S.A.C. (en adelante, BURGERBOY), identificada con RUC 20608099451, con domicilio en Calle Junín 142 Ofc. 206, Miraflores; y por CALAVERA PIZZA JOINT S.A.C. (en adelante, CALAVERA), identificada con RUC 20613405365, con domicilio en Calle Junín 142 Ofc. 206, Miraflores.</p>
+                                        
+                                        <p>La participación en la promoción implica el total conocimiento y aceptación de los presentes términos y condiciones. El incumplimiento de cualquiera de las disposiciones aquí establecidas podrá dar lugar a la no aplicación del beneficio.</p>
+
+                                        <h4 className="font-bold text-white mt-2">1. Objetivo de la promoción</h4>
+                                        <p>La promoción “Casados x El Hambre” tiene como finalidad brindar un 25% de descuento en una compra, válida para consumo en salón y pickup, a los participantes que cumplan con la mecánica establecida durante la fecha de vigencia.</p>
+
+                                        <h4 className="font-bold text-white mt-2">2. Vigencia de la promoción</h4>
+                                        <p>La promoción será válida únicamente el sábado 14 de febrero de 2026, durante el horario de atención de cada local participante o hasta agotar stock.</p>
+
+                                        <h4 className="font-bold text-white mt-2">3. Mecánica de la promoción</h4>
+                                        <p>Para acceder al beneficio, los participantes deberán cumplir con los siguientes pasos:</p>
+                                        <ul className="list-disc pl-5 space-y-1">
+                                            <li>Ingresar a la aplicación digital habilitada para la promoción, a través del enlace o código QR disponible en el local y en las redes sociales.</li>
+                                            <li>Aceptar los presentes términos y condiciones.</li>
+                                            <li>Ingresar los nombres de ambos participantes.</li>
+                                            <li>Utilizar la aplicación para tomarse una fotografía.</li>
+                                            <li>Compartir la fotografía generada como story en Instagram, etiquetando a @burgerboy.pe y @calavera.pizzeria.</li>
+                                            <li>Mostrar la story publicada al personal de caja del local donde se realizará el consumo.</li>
+                                        </ul>
+                                        <p className="mt-2">El beneficio es válido por una (1) story, aplicable a una (1) sola compra.</p>
+                                        <p>La promoción es válida únicamente para consumo en salón. No aplica para delivery ni pedidos para llevar.</p>
+
+                                        <h4 className="font-bold text-white mt-2">4. Condiciones del beneficio</h4>
+                                        <ul className="list-disc pl-5 space-y-1">
+                                            <li>El descuento es del 25% sobre el consumo realizado en una sola compra.</li>
+                                            <li>El beneficio podrá ser redimido indistintamente en Burgerboy o Calavera, en el local que el participante elija. Únicamente válido para consumo en el local o pickup en los locales participantes.</li>
+                                            <li>No aplica para delivery.</li>
+                                            <li>Aplica para todo el menú, excepto bebidas alcohólicas.</li>
+                                            <li>El descuento no es acumulable con otras promociones, descuentos u ofertas vigentes.</li>
+                                            <li>El beneficio es personal, no transferible y no canjeable por dinero en efectivo.</li>
+                                            <li>El beneficio estará sujeto a la disponibilidad de stock de los productos en cada local participante, el cual es limitado y podrá agotarse en su totalidad.</li>
+                                            <li>El beneficio estará disponible hasta durante el horario de atención del local y hasta agotar stock.</li>
+                                        </ul>
+
+                                        <h4 className="font-bold text-white mt-2">5. Locales participantes</h4>
+                                        
+                                        <p className="font-bold mt-1">Burgerboy</p>
+                                        <p className="underline">Participan:</p>
+                                        <ul className="list-disc pl-5">
+                                            <li>Burgerboy Larco - Av. José Larco 1158, Miraflores.</li>
+                                            <li>Burgerboy La Mar - Calle José Domingo Choquehuanca 411, Miraflores.</li>
+                                            <li>Burgerboy Surco - El Polo 695, Local 18, CC Urban Plaza (2do piso).</li>
+                                            <li>Burgerboy Surquillo - Lizardo Montero 1100 (solo para pickup).</li>
+                                        </ul>
+                                        <p className="underline mt-1">No participa:</p>
+                                        <ul className="list-disc pl-5">
+                                            <li>Burgerboy Aeropuerto (Zona Internacional).</li>
+                                        </ul>
+
+                                        <p className="font-bold mt-2">Calavera</p>
+                                        <p className="underline">Participan:</p>
+                                        <ul className="list-disc pl-5">
+                                            <li>Calavera La Mar - Av. Mariscal La Mar 1127, Miraflores.</li>
+                                            <li>Calavera El Polo - El Polo 695, Local 22, 2do piso, CC Urban Plaza El Polo.</li>
+                                        </ul>
+                                        <p className="mt-2">La promoción se encuentra sujeta al horario de atención de cada local o hasta agotar stock.</p>
+
+                                        <h4 className="font-bold text-white mt-2">6. Reserva de derechos</h4>
+                                        <p>BURGERBOY y CALAVERA se reservan el derecho de modificar, suspender o cancelar la promoción por causas de fuerza mayor o caso fortuito, así como de invalidar la participación de quienes no cumplan con los presentes términos o realicen acciones indebidas o fraudulentas.</p>
+
+                                        <h4 className="font-bold text-white mt-2">7. Protección de datos personales</h4>
+                                        <p>En cumplimiento de la Ley N° 29733, Ley de Protección de Datos Personales, y su Reglamento, todos los participantes autorizan expresamente a BURGERBOY y CALAVERA, sus cesionarios, continuadores legales y causahabientes, para tratar los datos personales que pudieran ser proporcionados en el marco de la presente promoción, quedando BURGERBOY y CALAVERA facultados para realizar cualquier operación o conjunto de operaciones o procedimientos técnicos, de carácter automatizado o no, que permitan recolectar, almacenar, grabar, organizar, elaborar, seleccionar, extraer, confrontar, interconectar, disociar, comunicar, ceder, transferir, transmitir o cancelar dichos datos, o utilizarlos en cualquier otra forma. Asimismo, autorizan a BURGERBOY y CALAVERA a delegar la presente autorización, por lo que podrán efectuar dicho tratamiento mediante terceros sujetos a un mandato, contrato de trabajo u otras formas contractuales.</p>
+                                        <p>El tratamiento de los datos mencionados tendrá como finalidad exclusiva: (a) gestionar la participación del usuario en la promoción, (b) validar el cumplimiento de la mecánica establecida, y (c) realizar las acciones necesarias para la correcta ejecución de la promoción.</p>
+
+                                        <h4 className="font-bold text-white mt-2">8. Autorización</h4>
+                                        <p>Los participantes autorizan a BURGERBOY y CALAVERA, quienes podrán delegar dicha autorización, a difundir y comunicar las fotografías, videos e imágenes generadas como parte de la dinámica de la promoción, con fines comerciales y/o publicitarios, en los medios de difusión que las Marcas estimen convenientes, sin que ello genere derecho a compensación alguna.</p>
+
                                     </div>
                                     <div className="mt-4 flex justify-center">
                                         <button onClick={() => setShowTerms(false)} className="bg-white text-black font-road-rage text-3xl px-8 py-1 hover:bg-gray-200">OK</button>
@@ -548,7 +606,7 @@
                 );
             }
 
-            // 3. MARRIAGE FORM (Renumbered Logic)
+            // 3. MARRIAGE FORM
             if (step === 3) {
                 return (
                     <div className="h-[100dvh] w-full bg-white flex flex-col font-oswald overflow-hidden">
@@ -578,8 +636,9 @@
                                     <span className="font-bold text-xs opacity-60">(TOMAR FOTO)</span>
                                 </form>
                             </div>
-                            <div className="flex-none w-full max-w-xs pb-4">
+                            <div className="flex-none w-full max-w-xs pb-2 flex flex-col items-center">
                                 <img src={ASSETS.logosFooter} alt="Logos" className="w-full" />
+                                <PoweredBy />
                             </div>
                         </div>
                     </div>
